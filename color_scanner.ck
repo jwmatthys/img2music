@@ -1,11 +1,5 @@
-# img2music
-Convert color image to music
-
-## OSC Messages
-
-ncoming OSC messages (on port 53186)
+/* incoming OSC messages (on port 53186)
     fff : hue sat br, 0-1
-
   /chains/all fff: master
     1. mode (scale)
     2. pitch range (narrow to wide)
@@ -26,3 +20,4 @@ ncoming OSC messages (on port 53186)
     1. syncopation?
     2. timbral variety (static for low sat)
     3. density (sparse for dark)
+*/
