@@ -24,3 +24,7 @@ fun void playNote (int note, int vel, dur len)
 [1.00,0,1,0,1,0,1,0,1,0,1,0] @=> float octatonicWeights[];
 [1.00,0,1,0,1,0,0,1,0,1,0,0] @=> float majorPentatonicWeights[];
 [1.00,0,0,1,0,1,0,1,0,0,1,0] @=> float minorPentatonicWeights[];
+[40,180] @=> int tempoRange[];
+[21,55] @=> int lowPitchRange[];
+[67,108] @=> int highPitchRange[];
+[1,4] @=> int rhythmicValues[]; // powers of 2 - half notes to 16th notes
