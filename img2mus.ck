@@ -6,6 +6,14 @@
 [0,1,3,4,6,7,9,10] @=> int octatonicScale[];
 [0,2,4,7,9] @=> int majorPentatonicScale[];
 [0,3,5,7,10] @=> int minorPentatonicScale[];
+
+[0,4,3,5,1,2,6] @=> int diatonicWeights[];
+[0,3,2,4,1] @=> int pentatonicWeights[];
+[0,4,2,6,3,1,5,7] @=> int octatonicWeights[];
+
+[aeolianScale,dorianScale,minorPentatonicScale,majorPentatonicScale,mixolydianScale,ionianScale,lydianScale,octatonicScale] @=> int allScales[][];
+[diatonicWeights,diatonicWeights,pentatonicWeights,pentatonicWeights,diatonicWeights,diatonicWeights,diatonicWeights,octatonicWeights] @=> int allWeights[][];
+allScales.size() => int numScales;
 -4 => int root;
 [40,180] @=> int tempoRange[];
 [21,55] @=> int lowPitchRange[];
@@ -13,47 +21,48 @@
 [1,4] @=> int rhythmicValues[]; // powers of 2 - half notes to 16th notes
 
 [0,8,12,4,14,6,10,2,15,7,11,3,13,5,9,1] @=> int beatWeights[];
-196 => float bpm;
+88 => float bpm;
 
 NRev rev => dac;
 0.1 => rev.mix;
 2 => dac.gain;
 
-lydianScale @=> int scale[];
+majorPentatonicScale @=> int scale[];
+pentatonicWeights @=> int weights[];
 
-PianoMelody highMelody;
-PianoMelody bassLine;
+FluidMelody highMelody;
+FluidBass bassLine;
+FluidMelody percussion;
 
 highMelody.set(6,48,84,8,0,0);
 highMelody.play();
 
-bassLine.set(3,24,48,4,0,0);
+bassLine.set(48,4,0);
 bassLine.play();
+
+percussion.changeVoice("soundfonts/Scratch_2_0.sf2",9);
+percussion.set(3,36,48,8,0.5,0.2);
+percussion.play();
+2 => percussion.m.gain;
 
 while (true)
 {
-  30::second => now;
   Math.random2(-1,1) +=> root;
-  lydianScale @=> scale;
-  Math.random2(8,16) => highMelody.density;
+  Math.random2(0,numScales-1) => int newScale;
+  allScales[newScale] @=> scale;
+  allWeights[newScale] @=> weights;
+  Math.random2(4,16) => highMelody.density;
   Math.random2f(0,1) => highMelody.syncopation;
   Math.random2f(0,1) => highMelody.disjunct;
-  Math.random2(2,6) => bassLine.density;
-  Math.random2f(0,1) => bassLine.syncopation;
-  Math.random2f(0,1) => bassLine.disjunct;
-  30::second => now;
-  Math.random2(-1,1) +=> root;
-  dorianScale @=> scale;
-  Math.random2(8,16) => highMelody.density;
-  Math.random2f(0,1) => highMelody.syncopation;
-  Math.random2f(0,1) => highMelody.disjunct;
-  Math.random2(2,6) => bassLine.density;
-  Math.random2f(0,1) => bassLine.syncopation;
-  Math.random2f(0,1) => bassLine.disjunct;
+  Math.random2(1,8) => bassLine.density;
+  Math.random2f(0,0.5) => bassLine.syncopation;
+  Math.random2f(60,200) => bpm;
+  15::second => now;
 }
 
-class PianoMelody
+class FluidMelody
 {
+  int channel;
   int octave;
   int lowBarrier;
   int highBarrier;
@@ -68,6 +77,12 @@ class PianoMelody
   m.open(sfont);
 
   ScaleNote note;
+
+  fun void changeVoice(string path, int chan)
+  {
+    m.open(path);
+    chan => channel;
+  }
 
   fun void set(int oct, int low, int high, int den, float sync, float disj)
   {
@@ -100,8 +115,62 @@ class PianoMelody
       {
         if (test[i])
         {
-          m.noteOff(note.getLast()+root,0);
-          m.noteOn(note.nextNote()+root,Math.random2(64,127),0);
+          m.noteOff(note.getLast()+root,channel);
+          m.noteOn(note.nextNote()+root,Math.random2(64,127),channel);
+        }
+        pulse() => now;
+      }
+    }
+  }
+}
+
+class FluidBass
+{
+  int channel;
+  int lowBarrier;
+  int highBarrier;
+  int density;
+  float syncopation;
+
+  "soundfonts/Salamander_C5-v3-MR-HEDSounds.sf2" => string sfont;
+  FluidSynth m => rev;
+  m => dac;
+  1 => m.gain;
+  m.open(sfont);
+
+  HarmonyNote note;
+
+  fun void changeVoice(string path, int chan)
+  {
+    m.open(path);
+    chan => channel;
+  }
+
+  fun void set(int low, int den, float sync)
+  {
+    low => lowBarrier;
+    den => density;
+    sync => syncopation;
+    lowBarrier => note.lowBarrier;
+  }
+
+  fun void play()
+  {
+    spork ~ playShred();
+  }
+
+  fun void playShred()
+  {
+    while (true)
+    {
+      lowBarrier => note.lowBarrier;
+      rhythmicPattern(density,syncopation) @=> int test[];
+      for (int i; i < test.size(); i++)
+      {
+        if (test[i])
+        {
+          m.noteOff(note.getLast()+root,channel);
+          m.noteOn(note.nextNote()+root,Math.random2(64,127),channel);
         }
         pulse() => now;
       }
@@ -189,7 +258,6 @@ class ScaleNote
         {
           scale.size() -=> testScaleIndex;
           octave--;
-
         }
 
       scale[testScaleIndex % scale.size()] + (12 * testOctave) => int testNote;
@@ -202,6 +270,29 @@ class ScaleNote
     }
     //<<< note, scaleIndex >>>;
     return scale[scaleIndex % scale.size()] + 12*octave;
+  }
+
+  fun int getLast()
+  {
+    return last;
+  }
+}
+
+class HarmonyNote
+{
+  int octave;
+  21 => int lowBarrier;
+  60 => int last;
+  60 => int note;
+
+  fun int nextNote ()
+  {
+    lowRand(0,weights.size())$int => int scalePick;
+    scale[scalePick] => int bassPitch;
+    while (bassPitch < lowBarrier) 12 +=> bassPitch;
+    note => last;
+    bassPitch => note;
+    return note;
   }
 
   fun int getLast()
