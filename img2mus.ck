@@ -6,7 +6,7 @@
 [0,1,3,4,6,7,9,10] @=> int octatonicScale[];
 [0,2,4,7,9] @=> int majorPentatonicScale[];
 [0,3,5,7,10] @=> int minorPentatonicScale[];
-
+-4 => int root;
 [40,180] @=> int tempoRange[];
 [21,55] @=> int lowPitchRange[];
 [67,108] @=> int highPitchRange[];
@@ -17,41 +17,94 @@
 
 NRev rev => dac;
 0.1 => rev.mix;
+2 => dac.gain;
 
-minorPentatonicScale @=> int scale[];
-spork ~ oneVoice(6,48,84,12,1,1);
-spork ~ oneVoice(5,48,72,15,1,1);
-spork ~ oneVoice(4,36,60,2,1,0);
-minute => now;
+lydianScale @=> int scale[];
 
+PianoMelody highMelody;
+PianoMelody bassLine;
 
-fun void oneVoice(int oct, int low, int high, int density, float synco, float disjunct)
+highMelody.set(6,48,84,8,0,0);
+highMelody.play();
+
+bassLine.set(3,24,48,4,0,0);
+bassLine.play();
+
+while (true)
 {
-  "soundfonts/Salamander_C5-v3-MR-HEDSounds.sf2" => string sfont;
-  if(me.args() > 0) me.arg(0) => sfont;
+  30::second => now;
+  Math.random2(-1,1) +=> root;
+  lydianScale @=> scale;
+  Math.random2(8,16) => highMelody.density;
+  Math.random2f(0,1) => highMelody.syncopation;
+  Math.random2f(0,1) => highMelody.disjunct;
+  Math.random2(2,6) => bassLine.density;
+  Math.random2f(0,1) => bassLine.syncopation;
+  Math.random2f(0,1) => bassLine.disjunct;
+  30::second => now;
+  Math.random2(-1,1) +=> root;
+  dorianScale @=> scale;
+  Math.random2(8,16) => highMelody.density;
+  Math.random2f(0,1) => highMelody.syncopation;
+  Math.random2f(0,1) => highMelody.disjunct;
+  Math.random2(2,6) => bassLine.density;
+  Math.random2f(0,1) => bassLine.syncopation;
+  Math.random2f(0,1) => bassLine.disjunct;
+}
 
+class PianoMelody
+{
+  int octave;
+  int lowBarrier;
+  int highBarrier;
+  int density;
+  float syncopation;
+  float disjunct;
+
+  "soundfonts/Salamander_C5-v3-MR-HEDSounds.sf2" => string sfont;
   FluidSynth m => rev;
   m => dac;
   1 => m.gain;
   m.open(sfont);
 
   ScaleNote note;
-  low => note.lowBarrier;
-  high => note.highBarrier;
-  oct => note.octave;
-  disjunct => note.disjunct;
 
-  while (true)
+  fun void set(int oct, int low, int high, int den, float sync, float disj)
   {
-    rhythmicPattern(density,synco) @=> int test[];
-    for (int i; i < test.size(); i++)
+    oct => octave;
+    low => lowBarrier;
+    high => highBarrier;
+    den => density;
+    sync => syncopation;
+    disj => disjunct;
+    lowBarrier => note.lowBarrier;
+    highBarrier => note.highBarrier;
+    octave => note.octave;
+    disjunct => note.disjunct;
+  }
+
+  fun void play()
+  {
+    spork ~ playShred();
+  }
+
+  fun void playShred()
+  {
+    while (true)
     {
-      if (test[i])
+      lowBarrier => note.lowBarrier;
+      highBarrier => note.highBarrier;
+      disjunct => note.disjunct;
+      rhythmicPattern(density,syncopation) @=> int test[];
+      for (int i; i < test.size(); i++)
       {
-        m.noteOff(note.getLast(),0);
-        m.noteOn(note.nextNote(),Math.random2(64,127),0);
+        if (test[i])
+        {
+          m.noteOff(note.getLast()+root,0);
+          m.noteOn(note.nextNote()+root,Math.random2(64,127),0);
+        }
+        pulse() => now;
       }
-      pulse() => now;
     }
   }
 }
@@ -113,7 +166,7 @@ class ScaleNote
   int scaleIndex;
   21 => int lowBarrier;
   108 => int highBarrier;
-  int last;
+  60 => int last;
 
   fun int nextNote ()
   {
