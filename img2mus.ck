@@ -16,10 +16,6 @@
 allScales.size() => int numScales;
 -4 => int root;
 3 => int whichScale;
-[60,200] @=> int tempoRange[];
-[21,55] @=> int lowPitchRange[];
-[67,108] @=> int highPitchRange[];
-[1,4] @=> int rhythmicValues[]; // powers of 2 - half notes to 16th notes
 
 [0,8,12,4,14,6,10,2,15,7,11,3,13,5,9,1] @=> int beatWeights[];
 144 => float bpm;
@@ -40,13 +36,13 @@ FluidBass bassLine;
 FluidMelody percussion;
 FluidChords chords;
 
-highMelody.set(7,72,96,8,0,0);
+highMelody.set(7,72,19,8,0,0);
 0.5 => highMelody.m.gain;
 
 bassLine.set(48,4,0);
 
 percussion.changeVoice("soundfonts/Scratch_2_0.sf2",9);
-percussion.set(3,36,60,8,0.5,0.2);
+percussion.set(3,24,35,8,0.5,0.2);
 
 highMelody.play();
 bassLine.play();
@@ -75,7 +71,7 @@ repeat (20)
   Math.random2(30,60) => bassLine.lowBarrier;
   Math.random2(60,84) => highMelody.lowBarrier;
   Math.random2(13,36) => highMelody.range;
-  Math.random2(2,6) => chords.numPitches;
+  Math.random2(2,8) => chords.numPitches;
   Math.random2(7,24) => chords.width;
   Math.random2(1,16) => chords.density;
   Math.random2f(0.5,1) => chords.syncopation;
@@ -398,10 +394,12 @@ class FluidChords
   fun void oneChord()
   {
     pulse() * arpLen / numPitches => dur arp;
-    width/(numPitches - 1.0) => float dist;
+    lowBarrier + Math.random2(-1,1) => int thisLowBarrier;
+    width + Math.random2(-1,1) => int thisWidth;
+    thisWidth/(numPitches - 1.0) => float dist;
     for (int j; j < numPitches; j++)
     {
-      lowBarrier + (j * dist) => float pureSplit;
+      thisLowBarrier + (j * dist) => float pureSplit;
       fitToScale(pureSplit) => int fitSplit;
       m.noteOn(fitSplit+root,Math.random2(40,80),channel);
       arp => now;
