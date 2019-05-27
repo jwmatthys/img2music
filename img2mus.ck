@@ -79,10 +79,12 @@ repeat (20)
   Math.random2(7,24) => chords.width;
   Math.random2(1,16) => chords.density;
   Math.random2f(0.5,1) => chords.syncopation;
-  Math.random2(0,4) => chords.arpLen;
-  <<< chords.density, chords.syncopation, chords.arpLen >>>;
+  4 => chords.arpLen;
   15::second => now;
 }
+
+
+
 w.closeFile();
 
 //-----------------------------------------------------------------------
@@ -276,35 +278,31 @@ class ScaleNote
   {
     (1 + ((scale.size()-1) * disjunct))$int => int maxLeap;
     scale[scaleIndex % scale.size()] + 12*octave => last;
-    scaleIndex => int testScaleIndex;
-    octave => int testOctave;
-    Math.random2(0, maxLeap) => int leapSize;
-    if (maybe) -1 *=> leapSize;
-    while (true)
-    {
-      leapSize +=> testScaleIndex;
-      while (testScaleIndex < 0)
+      Math.random2(0, maxLeap) => int leapSize;
+      if (maybe) -1 *=> leapSize;
+      leapSize +=> scaleIndex;
+      while (scaleIndex < 0)
       {
-        scale.size() +=> testScaleIndex;
-        octave++;
-      }
-      while (testScaleIndex >= scale.size())
-      {
-        scale.size() -=> testScaleIndex;
+        scale.size() +=> scaleIndex;
         octave--;
       }
-      scale[testScaleIndex % scale.size()] + (12 * testOctave) => int testNote;
-      if (testNote < lowBarrier) octave++;
-      if (testNote > lowBarrier + range) octave--;
-      if (testNote >= lowBarrier && testNote <= (lowBarrier + range))
+      while (scaleIndex >= scale.size())
       {
-        testOctave => octave;
-        testScaleIndex => scaleIndex;
-        break;
+        scale.size() -=> scaleIndex;
+        octave++;
       }
-    }
-    //<<< note, scaleIndex >>>;
-    return scale[scaleIndex % scale.size()] + 12*octave;
+      scale[scaleIndex % scale.size()] + (12 * octave) => int testNote;
+      while (testNote < lowBarrier)
+      {
+        octave++;
+        12 +=> testNote;
+      }
+      while (testNote > lowBarrier + range)
+      {
+        octave--;
+        12 -=> testNote;
+      }
+    return testNote;
   }
 
   fun int getLast()
@@ -389,21 +387,24 @@ class FluidChords
       rhythmicPattern(density,syncopation) @=> int test[];
       for (int i; i < test.size(); i++)
       {
-        arpLen * pulse() => dur segmentLen;
-        (4*pulse()) - segmentLen => dur arpDiff;
         if (test[i])
         {
-          width/(numPitches - 1.0) => float dist;
-          for (int j; j < numPitches; j++)
-          {
-            lowBarrier + (j * dist) => float pureSplit;
-            fitToScale(pureSplit) => int fitSplit;
-            m.noteOn(fitSplit+root,Math.random2(40,80),channel);
-            (segmentLen / numPitches) => now;
-          }
+          spork ~ oneChord();
         }
-        arpDiff => now;
+        4*pulse() => now;
       }
+    }
+  }
+  fun void oneChord()
+  {
+    pulse() * arpLen / numPitches => dur arp;
+    width/(numPitches - 1.0) => float dist;
+    for (int j; j < numPitches; j++)
+    {
+      lowBarrier + (j * dist) => float pureSplit;
+      fitToScale(pureSplit) => int fitSplit;
+      m.noteOn(fitSplit+root,Math.random2(40,80),channel);
+      arp => now;
     }
   }
 }
