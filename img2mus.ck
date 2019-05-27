@@ -11,11 +11,16 @@
 [0,3,2,4,1] @=> int pentatonicWeights[];
 [0,5,4,2,1,6,3,7] @=> int octatonicWeights[];
 
-[aeolianScale,dorianScale,minorPentatonicScale,majorPentatonicScale,mixolydianScale,ionianScale,lydianScale,octatonicScale] @=> int allScales[][];
-[diatonicWeights,diatonicWeights,pentatonicWeights,pentatonicWeights,diatonicWeights,diatonicWeights,diatonicWeights,octatonicWeights] @=> int allWeights[][];
+//[aeolianScale,dorianScale,minorPentatonicScale,majorPentatonicScale,mixolydianScale,ionianScale,lydianScale,octatonicScale] @=> int allScales[][];
+[octatonicScale, lydianScale, ionianScale, majorPentatonicScale, minorPentatonicScale, dorianScale, aeolianScale,
+dorianScale, minorPentatonicScale, majorPentatonicScale, ionianScale, lydianScale, octatonicScale] @=> int allScales[][];
+[octatonicWeights, diatonicWeights, diatonicWeights, pentatonicWeights, pentatonicWeights, diatonicWeights, diatonicWeights,
+diatonicWeights, pentatonicWeights, pentatonicWeights, diatonicWeights, diatonicWeights, octatonicWeights] @=> int allWeights[][];
+//[diatonicWeights,diatonicWeights,pentatonicWeights,pentatonicWeights,diatonicWeights,diatonicWeights,diatonicWeights,octatonicWeights] @=> int allWeights[][];
+
 allScales.size() => int numScales;
--4 => int root;
-3 => int whichScale;
+0 => int root;
+6 => int oldScale;
 
 [0,8,12,4,14,6,10,2,15,7,11,3,13,5,9,1] @=> int beatWeights[];
 144 => float bpm;
@@ -24,9 +29,11 @@ NRev rev => dac;
 0.1 => rev.mix;
 3 => dac.gain;
 
-dac => WvOut2 w => blackhole;
-"img2music" => w.wavFilename;
+//dac => WvOut2 w => blackhole;
+//"img2music" => w.wavFilename;
 //null @=> w;
+
+spork ~ processOSC();
 
 majorPentatonicScale @=> int scale[];
 pentatonicWeights @=> int weights[];
@@ -53,35 +60,34 @@ now => time start;
 repeat (20)
 {
   <<< (now - start)/second, "seconds elapsed" >>>;
-  Math.random2(-1,1) +=> root;
-  Math.random2(-1,1) +=> whichScale;
-  if (whichScale < 0)  0 => whichScale;
-  if (whichScale >= allScales.size()) allScales.size() - 1 => whichScale;
-  allScales[whichScale] @=> scale;
-  allWeights[whichScale] @=> weights;
-  Math.random2(0,16) => highMelody.density;
-  Math.random2f(0,0.75) => highMelody.syncopation;
-  Math.random2f(0,1) => highMelody.disjunct;
-  Math.random2(0,8) => bassLine.density;
-  Math.random2f(0,0.5) => bassLine.syncopation;
-  Math.random2(0,16) => percussion.density;
-  Math.random2f(0,1) => percussion.syncopation;
-  Math.random2f(0,1) => percussion.disjunct;
-  Math.random2f(-10,10) +=> bpm;
-  Math.random2(30,60) => bassLine.lowBarrier;
-  Math.random2(60,84) => highMelody.lowBarrier;
+  Math.random2f(-10,10) +=> bpm; // band 0 - br (40 - 200)
+  Math.random2(-1,1) +=> root;  // random with master hue
+  //Math.random2(-1,1) +=> oldScale; // band 0 - hue (0-12)
+  // total width (lowBarrier & range) - band 0 - sat
+  //if (oldScale < 0)  0 => oldScale;
+  //if (oldScale >= allScales.size()) allScales.size() - 1 => oldScale;
+  //allScales[oldScale] @=> scale;
+  //allWeights[oldScale] @=> weights;
+  Math.random2(0,16) => highMelody.density; // band 1 - br
+  Math.random2f(0,0.75) => highMelody.syncopation; // random (or fix at 0.5)
+  Math.random2f(0,1) => highMelody.disjunct; // band 1 - hue
+  Math.random2(60,84) => highMelody.lowBarrier; // band 1 - sat
   Math.random2(13,36) => highMelody.range;
-  Math.random2(2,8) => chords.numPitches;
-  Math.random2(7,24) => chords.width;
-  Math.random2(1,16) => chords.density;
-  Math.random2f(0.5,1) => chords.syncopation;
-  4 => chords.arpLen;
+  Math.random2(30,60) => bassLine.lowBarrier; // band 4 - hue
+  Math.random2(0,8) => bassLine.density; // band 4 - br
+  Math.random2f(0,0.5) => bassLine.syncopation; // band 4 - sat
+  Math.random2(0,16) => percussion.density; // band 3 - br
+  Math.random2f(0,1) => percussion.syncopation; // band 3 - hue
+  Math.random2f(0,1) => percussion.disjunct; // band 3 - sat
+  Math.random2(2,8) => chords.numPitches; // band 2 - br
+  Math.random2(7,24) => chords.width; // band 2 - hue
+  Math.random2(1,16) => chords.density; // band 2 - random (or inverse sat)
+  Math.random2f(0.5,1) => chords.syncopation; // band 2 - random
+  Math.random2(0,4) => chords.arpLen; // band 2 - sat
   15::second => now;
 }
 
-
-
-w.closeFile();
+//w.closeFile();
 
 //-----------------------------------------------------------------------
 
@@ -403,6 +409,60 @@ class FluidChords
       fitToScale(pureSplit) => int fitSplit;
       m.noteOn(fitSplit+root,Math.random2(40,80),channel);
       arp => now;
+    }
+  }
+}
+
+fun float flerp (float in, float low, float high)
+{
+  return low + ((high-low)*in);
+}
+
+fun int ilerp (float in, float low, float high)
+{
+  return (low + ((high-low)*in))$int;
+}
+
+fun float clamp (float in, float low, float high)
+{
+  if (in < low) return low;
+  if (in > high) return high;
+  return in;
+}
+
+fun void processOSC()
+{
+  OscIn oin;
+  OscMsg msg;
+  53186 => oin.port;
+  oin.addAddress( "/torch, ifff" );
+  while (true)
+  {
+    oin => now;
+    while ( oin.recv(msg) != 0 )
+    {
+        msg.getInt(0) => int whichTrack;
+        msg.getFloat(1) => float hue;
+        msg.getFloat(2) => float sat;
+        msg.getFloat(3) => float br;
+        //<<< "track",whichTrack,"hue:",hue,"sat:",sat,"br:",br >>>;
+        if (0 == whichTrack) // master controls
+        {
+          ilerp (hue, 0, 13) => int newScale;
+          if (newScale != oldScale && Math.abs(newScale - oldScale) < 11)
+          {
+            allScales[newScale] @=> scale;
+            allWeights[newScale] @=> weights;
+            Math.random2(-1,1) +=> root;
+            newScale => oldScale;
+            <<< newScale >>>;
+          }
+          flerp (br, 40, 200) => bpm;
+          ilerp (sat, 24, 60) => bassLine.lowBarrier;
+          ilerp (sat, 48, 60) => chords.lowBarrier;
+          ilerp (sat, 84, 60) => highMelody.lowBarrier;
+          ilerp (sat, 13, 36) => highMelody.range;
+        }
     }
   }
 }

@@ -4,29 +4,32 @@ Convert color image to music
 ## OSC Messages
 
 * incoming OSC messages (on port 53186)
-* fff : hue sat br, 0-1
+* /torch
+* ifff : track (0-4), hue sat br, 0-1
+* if i=-1, trigger fadeout and reset playback
+* if not playing, any received data starts playback
 
-### /chains/all fff: master
+### master (track 0)
 1. mode (scale)
 2. pitch range (narrow to wide)
 3. tempo (slow to fast)
 
-### /chains/band/0 - melody line
+### melody line (track 1)
 1. rhythmic complexity (syncopation)
 2. disjunctness
 3. density (subdivision)
 
-### /chains/band/1 - harmony
-1. density (notes per chord)
-2. chord width (M2 - P15)
-3. texture (shimmer, arpeggios, block chords)
+### harmony (track 2)
+1. chord width (7 - 24 semi)
+2. texture (shimmer, arpeggios, block chords)
+3. density (numPitches)
 
-### /chains/band/2 - bassline
-1. rhythmic complexity (syncopation)
-2. density (subdivision)
-3. pitch range (octave)
-
-### /chains/band/3 - percussion
-1. syncopation?
+### percussion (track 3)
+1. syncopation
 2. timbral variety (static for low sat)
 3. density (sparse for dark)
+
+### bassline (track 4)
+1. pitch range (octave)
+2. rhythmic complexity (syncopation)
+3. density (subdivision)

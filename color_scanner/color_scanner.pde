@@ -18,7 +18,7 @@ void setup()
   myRemoteLocation = new NetAddress("127.0.0.1", 53186);
   size(600, 600);
   img = loadImage("3.jpg");
-  //frameRate(1);
+  frameRate(2);
   colorMode(HSB, 360);
   image(img, 0, 0, width, height);
   hueBand = new float[numBands];
@@ -30,58 +30,67 @@ void setup()
 void draw()
 {
   int x = frameCount;
-  if (x >= width) exit();
-  int y = 0;
-  float allHues[] = new float[height];
-  float tempHues[] = new float[bandwidth];
-  OscMessage myMessage;
-  float allHue = 0;
-  float allSat = 0;
-  float allVal = 0;
-  for (int band = 0; band < numBands; band++)
+  if (x >= width)
   {
-    float tempSat = 0;
-    float tempVal = 0;
-    for (int i = 0; i < tempHues.length; i++)
-    {
-      color c = get(x, y);
-      tempHues[i] = hue(c);
-      allHues[y] = hue(c);
-      tempSat += saturation(c);
-      tempVal += brightness(c);
-      allSat += saturation(c);
-      allVal += brightness(c);
-      y++;
-    }
-    hueBand[band] = getAverageBearing(tempHues);
-    satBand[band] = tempSat / tempHues.length;
-    valBand[band] = tempVal / tempHues.length;
-    myMessage = new OscMessage("/chains/band/"+band);
-    myMessage.add(hueBand[band]/360);
-    myMessage.add(satBand[band]/360);
-    myMessage.add(valBand[band]/360);
+    OscMessage myMessage;
+    myMessage = new OscMessage("/torch");
+    myMessage.add(-1);    
+    myMessage.add(0.0);    
+    myMessage.add(0.0);    
+    myMessage.add(0.0);  
     oscP5.send(myMessage, myRemoteLocation);
+    exit();
+  } else {
+    int y = 0;
+    float allHues[] = new float[height];
+    float tempHues[] = new float[bandwidth];
+    OscMessage myMessage;
+    float allHue = 0;
+    float allSat = 0;
+    float allVal = 0;
+    for (int band = 0; band < numBands; band++)
+    {
+      float tempSat = 0;
+      float tempVal = 0;
+      for (int i = 0; i < tempHues.length; i++)
+      {
+        color c = get(x, y);
+        tempHues[i] = hue(c);
+        allHues[y] = hue(c);
+        tempSat += saturation(c);
+        tempVal += brightness(c);
+        allSat += saturation(c);
+        allVal += brightness(c);
+        y++;
+      }
+      hueBand[band] = getAverageBearing(tempHues);
+      satBand[band] = tempSat / tempHues.length;
+      valBand[band] = tempVal / tempHues.length;
+      myMessage = new OscMessage("/torch");
+      myMessage.add(band+1);
+      myMessage.add(hueBand[band]/360);
+      myMessage.add(satBand[band]/360);
+      myMessage.add(valBand[band]/360);
+      oscP5.send(myMessage, myRemoteLocation);
+    }
+
+    allHue = getAverageBearing(allHues);
+    allSat /= y;
+    allVal /= y;
+    myMessage = new OscMessage("/torch");
+    myMessage.add(0);
+    myMessage.add(allHue/360);
+    myMessage.add(allSat/360);
+    myMessage.add(allVal/360);
+    oscP5.send(myMessage, myRemoteLocation);
+
+    for (int i = 0; i < numBands; i++)
+    {
+      //println("band "+i+": "+hueBand[i]+", "+satBand[i]+", "+valBand[i]);
+      stroke(hueBand[i], satBand[i], valBand[i]);
+      line(x, bandwidth*i, x, bandwidth*(i+1));
+    }
   }
-
-  allHue = getAverageBearing(allHues);
-  allSat /= y;
-  allVal /= y;
-  myMessage = new OscMessage("/chains/all");
-  myMessage.add(allHue/360);
-  myMessage.add(allSat/360);
-  myMessage.add(allVal/360);
-  oscP5.send(myMessage, myRemoteLocation);
-
-  for (int i = 0; i < numBands; i++)
-  {
-    //println("band "+i+": "+hueBand[i]+", "+satBand[i]+", "+valBand[i]);
-    stroke(hueBand[i], satBand[i], valBand[i]);
-    line(x, bandwidth*i, x, bandwidth*(i+1));
-  }
-
-  //stroke(allHue, allSat, allVal);
-  //line(x, 0, x, height);
-  //saveFrame("frames/####.tif");
 }
 
 public static float getAverageBearing(float[] arr)
