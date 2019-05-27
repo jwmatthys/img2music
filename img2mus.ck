@@ -28,27 +28,35 @@ NRev rev => dac;
 0.1 => rev.mix;
 3 => dac.gain;
 
+dac => WvOut2 w => blackhole;
+"img2music" => w.wavFilename;
+//null @=> w;
+
 majorPentatonicScale @=> int scale[];
 pentatonicWeights @=> int weights[];
 
 FluidMelody highMelody;
 FluidBass bassLine;
 FluidMelody percussion;
+FluidChords chords;
 
 highMelody.set(7,72,96,8,0,0);
-highMelody.play();
 0.5 => highMelody.m.gain;
 
 bassLine.set(48,4,0);
-bassLine.play();
 
 percussion.changeVoice("soundfonts/Scratch_2_0.sf2",9);
 percussion.set(3,36,60,8,0.5,0.2);
+
+highMelody.play();
+bassLine.play();
 percussion.play();
+chords.play();
 
-
-while (true)
+now => time start;
+repeat (20)
 {
+  <<< (now - start)/second, "seconds elapsed" >>>;
   Math.random2(-1,1) +=> root;
   Math.random2(-1,1) +=> whichScale;
   if (whichScale < 0)  0 => whichScale;
@@ -64,23 +72,34 @@ while (true)
   Math.random2f(0,1) => percussion.syncopation;
   Math.random2f(0,1) => percussion.disjunct;
   Math.random2f(-10,10) +=> bpm;
+  Math.random2(30,60) => bassLine.lowBarrier;
+  Math.random2(60,84) => highMelody.lowBarrier;
+  Math.random2(13,36) => highMelody.range;
+  Math.random2(2,6) => chords.numPitches;
+  Math.random2(7,24) => chords.width;
+  Math.random2(1,16) => chords.density;
+  Math.random2f(0.5,1) => chords.syncopation;
+  Math.random2(0,4) => chords.arpLen;
+  <<< chords.density, chords.syncopation, chords.arpLen >>>;
   15::second => now;
 }
+w.closeFile();
+
+//-----------------------------------------------------------------------
 
 class FluidMelody
 {
   int channel;
   int octave;
   int lowBarrier;
-  int highBarrier;
+  int range;
   int density;
   float syncopation;
   float disjunct;
 
   "soundfonts/Salamander_C5-v3-MR-HEDSounds.sf2" => string sfont;
-  FluidSynth m => rev;
+  FluidSynth m  => rev;
   m => dac;
-  1 => m.gain;
   m.open(sfont);
 
   ScaleNote note;
@@ -91,16 +110,16 @@ class FluidMelody
     chan => channel;
   }
 
-  fun void set(int oct, int low, int high, int den, float sync, float disj)
+  fun void set(int oct, int low, int ran, int den, float sync, float disj)
   {
     oct => octave;
     low => lowBarrier;
-    high => highBarrier;
+    ran => range;
     den => density;
     sync => syncopation;
     disj => disjunct;
     lowBarrier => note.lowBarrier;
-    highBarrier => note.highBarrier;
+    range => note.range;
     octave => note.octave;
     disjunct => note.disjunct;
   }
@@ -115,7 +134,7 @@ class FluidMelody
     while (true)
     {
       lowBarrier => note.lowBarrier;
-      highBarrier => note.highBarrier;
+      range => note.range;
       disjunct => note.disjunct;
       rhythmicPattern(density,syncopation) @=> int test[];
       for (int i; i < test.size(); i++)
@@ -137,7 +156,6 @@ class FluidBass
 {
   3 => int channel;
   int lowBarrier;
-  int highBarrier;
   int density;
   float syncopation;
 
@@ -251,34 +269,34 @@ class ScaleNote
   float disjunct;
   int scaleIndex;
   21 => int lowBarrier;
-  108 => int highBarrier;
+  24 => int range;
   60 => int last;
 
   fun int nextNote ()
   {
     (1 + ((scale.size()-1) * disjunct))$int => int maxLeap;
     scale[scaleIndex % scale.size()] + 12*octave => last;
+    scaleIndex => int testScaleIndex;
+    octave => int testOctave;
+    Math.random2(0, maxLeap) => int leapSize;
+    if (maybe) -1 *=> leapSize;
     while (true)
     {
-      scaleIndex => int testScaleIndex;
-      octave => int testOctave;
-      Math.random2(0, maxLeap) => int leapSize;
-      if (maybe) -1 *=> leapSize;
-      if (leapSize == 0) break;
-        leapSize +=> testScaleIndex;
-        while (testScaleIndex < 0)
-        {
-          scale.size() +=> testScaleIndex;
-          octave++;
-        }
-        while (testScaleIndex >= scale.size())
-        {
-          scale.size() -=> testScaleIndex;
-          octave--;
-        }
-
+      leapSize +=> testScaleIndex;
+      while (testScaleIndex < 0)
+      {
+        scale.size() +=> testScaleIndex;
+        octave++;
+      }
+      while (testScaleIndex >= scale.size())
+      {
+        scale.size() -=> testScaleIndex;
+        octave--;
+      }
       scale[testScaleIndex % scale.size()] + (12 * testOctave) => int testNote;
-      if (testNote >= lowBarrier && testNote <= highBarrier)
+      if (testNote < lowBarrier) octave++;
+      if (testNote > lowBarrier + range) octave--;
+      if (testNote >= lowBarrier && testNote <= (lowBarrier + range))
       {
         testOctave => octave;
         testScaleIndex => scaleIndex;
@@ -315,5 +333,77 @@ class HarmonyNote
   fun int getLast()
   {
     return last;
+  }
+}
+
+class FluidChords
+{
+  3 => int numPitches;
+  12 => int width;
+  48 => int lowBarrier;
+  int arpLen; // 0 - 4 pulses
+  int channel;
+  4 => int density;
+  0.75 => float syncopation;
+
+  "soundfonts/Salamander_C5-v3-MR-HEDSounds.sf2" => string sfont;
+  FluidSynth m  => rev;
+  m => dac;
+  m.open(sfont);
+
+  fun void changeVoice(string path, int chan)
+  {
+    m.open(path);
+    chan => channel;
+  }
+
+  fun int fitToScale (float input)
+  {
+    200 => float bestDist;
+    73 => int closestNote;
+    for (int oct; oct < 10; oct++)
+    {
+      for (int i; i < scale.size(); i++)
+      {
+        (12 * oct) + scale[i] => int testNote;
+        Math.fabs(input - testNote) => float testDist;
+        if (testDist < bestDist)
+        {
+          testDist => bestDist;
+          testNote => closestNote;
+        }
+        if (testDist > bestDist) return closestNote;
+      }
+    }
+  }
+
+  fun void play()
+  {
+    spork ~ playShred();
+  }
+
+  fun void playShred()
+  {
+    while (true)
+    {
+      rhythmicPattern(density,syncopation) @=> int test[];
+      for (int i; i < test.size(); i++)
+      {
+        arpLen * pulse() => dur segmentLen;
+        (4*pulse()) - segmentLen => dur arpDiff;
+        if (test[i])
+        {
+          width/(numPitches - 1.0) => float dist;
+          for (int j; j < numPitches; j++)
+          {
+            lowBarrier + (j * dist) => float pureSplit;
+            fitToScale(pureSplit) => int fitSplit;
+            m.noteOn(fitSplit+root,Math.random2(40,80),channel);
+            (segmentLen / numPitches) => now;
+          }
+        }
+        arpDiff => now;
+      }
+    }
   }
 }

@@ -1,6 +1,7 @@
 # soundfonts stuff
 soundfonts/
 *.sf2
+*.wav
 
 # Compiled class file
 *.class
