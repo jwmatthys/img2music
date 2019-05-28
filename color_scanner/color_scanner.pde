@@ -17,10 +17,24 @@ void setup()
   oscP5 = new OscP5(this, 12000); // listen at 12000
   myRemoteLocation = new NetAddress("127.0.0.1", 53186);
   size(600, 600);
-  img = loadImage("3.jpg");
-  frameRate(2);
+  img = loadImage("water.jpg");
+  frameRate(4);
   colorMode(HSB, 360);
   image(img, 0, 0, width, height);
+  double brsum = 0;
+  for (int i=0; i<width; i++)
+  {
+    color c = get(i, height/2);
+    brsum += brightness(c)/255.0;
+  }
+  OscMessage myMessage;
+  myMessage = new OscMessage("/torch");
+  myMessage.add(99);
+  myMessage.add(0.0);    
+  myMessage.add(0.0);  
+  myMessage.add(brsum/width);    
+  oscP5.send(myMessage, myRemoteLocation);
+
   hueBand = new float[numBands];
   satBand = new float[numBands];
   valBand = new float[numBands];

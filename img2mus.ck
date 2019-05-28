@@ -43,47 +43,21 @@ FluidBass bassLine;
 FluidMelody percussion;
 FluidChords chords;
 
-highMelody.set(7,72,19,8,0,0);
+highMelody.set(7,72,19,0,0,0);
 0.5 => highMelody.m.gain;
 
 bassLine.set(48,4,0);
 
 percussion.changeVoice("soundfonts/Scratch_2_0.sf2",9);
-percussion.set(3,24,35,8,0.5,0.2);
+percussion.set(3,24,35,0,0.5,0.2);
 
-highMelody.play();
-bassLine.play();
-percussion.play();
-chords.play();
+0.5 => chords.syncopation;
 
 now => time start;
-repeat (20)
+while (true)
 {
   <<< (now - start)/second, "seconds elapsed" >>>;
-  Math.random2f(-10,10) +=> bpm; // band 0 - br (40 - 200)
-  Math.random2(-1,1) +=> root;  // random with master hue
-  //Math.random2(-1,1) +=> oldScale; // band 0 - hue (0-12)
-  // total width (lowBarrier & range) - band 0 - sat
-  //if (oldScale < 0)  0 => oldScale;
-  //if (oldScale >= allScales.size()) allScales.size() - 1 => oldScale;
-  //allScales[oldScale] @=> scale;
-  //allWeights[oldScale] @=> weights;
-  Math.random2(0,16) => highMelody.density; // band 1 - br
-  Math.random2f(0,0.75) => highMelody.syncopation; // random (or fix at 0.5)
-  Math.random2f(0,1) => highMelody.disjunct; // band 1 - hue
-  Math.random2(60,84) => highMelody.lowBarrier; // band 1 - sat
-  Math.random2(13,36) => highMelody.range;
-  Math.random2(30,60) => bassLine.lowBarrier; // band 4 - hue
-  Math.random2(0,8) => bassLine.density; // band 4 - br
-  Math.random2f(0,0.5) => bassLine.syncopation; // band 4 - sat
-  Math.random2(0,16) => percussion.density; // band 3 - br
-  Math.random2f(0,1) => percussion.syncopation; // band 3 - hue
-  Math.random2f(0,1) => percussion.disjunct; // band 3 - sat
-  Math.random2(2,8) => chords.numPitches; // band 2 - br
-  Math.random2(7,24) => chords.width; // band 2 - hue
-  Math.random2(1,16) => chords.density; // band 2 - random (or inverse sat)
-  Math.random2f(0.5,1) => chords.syncopation; // band 2 - random
-  Math.random2(0,4) => chords.arpLen; // band 2 - sat
+  <<< "highMelody.density",highMelody.density >>>;
   15::second => now;
 }
 
@@ -418,9 +392,9 @@ fun float flerp (float in, float low, float high)
   return low + ((high-low)*in);
 }
 
-fun int ilerp (float in, float low, float high)
+fun int ilerp (float in, int low, int high)
 {
-  return (low + ((high-low)*in))$int;
+  return (low + ((1+high-low)*in))$int;
 }
 
 fun float clamp (float in, float low, float high)
@@ -446,22 +420,57 @@ fun void processOSC()
         msg.getFloat(2) => float sat;
         msg.getFloat(3) => float br;
         //<<< "track",whichTrack,"hue:",hue,"sat:",sat,"br:",br >>>;
+        if (99 == whichTrack) // start!
+        {
+          flerp(br,88,212) => bpm;
+          highMelody.play();
+          bassLine.play();
+          percussion.play();
+          chords.play();
+        }
         if (0 == whichTrack) // master controls
         {
-          ilerp (hue, 0, 13) => int newScale;
+          ilerp (hue, 0, 12) => int newScale;
           if (newScale != oldScale && Math.abs(newScale - oldScale) < 11)
           {
             allScales[newScale] @=> scale;
             allWeights[newScale] @=> weights;
             Math.random2(-1,1) +=> root;
             newScale => oldScale;
-            <<< newScale >>>;
           }
-          flerp (br, 40, 200) => bpm;
-          ilerp (sat, 24, 60) => bassLine.lowBarrier;
-          ilerp (sat, 48, 60) => chords.lowBarrier;
-          ilerp (sat, 84, 60) => highMelody.lowBarrier;
-          ilerp (sat, 13, 36) => highMelody.range;
+          ilerp (sat, 60, 24) => bassLine.lowBarrier;
+          ilerp (sat, 60, 48) => chords.lowBarrier;
+          ilerp (sat, 60, 84) => highMelody.lowBarrier;
+          ilerp (br, 13, 36) => highMelody.range;
+        }
+        if (1 == whichTrack) // highMelody
+        {
+          hue => highMelody.disjunct; // band 1 - sat
+          ilerp (sat, 0, 6) => highMelody.density; // band 1 - br
+          br => highMelody.syncopation; // hue
+        }
+        if (2 == whichTrack)
+        {
+          ilerp(br, 7, 24) => chords.width;
+          ilerp(sat, 4, 0) => chords.arpLen;
+          ilerp(hue,8, 0) => chords.density; // band 2 - random (or inverse sat)
+          ilerp(br, 2, 8) => chords.numPitches;
+        }
+        if (3 == whichTrack)
+        {
+          br => percussion.syncopation; // band 3 - hue
+          hue => percussion.disjunct; // band 3 - sat
+          ilerp(sat,0,16) => percussion.density; // band 3 - br
+        }
+        if (4 == whichTrack)
+        {
+          ilerp(hue,30,60) => bassLine.lowBarrier; // band 4 - hue
+          sat * 0.5 => bassLine.syncopation; // band 4 - sat
+          ilerp(br,0,8) => bassLine.density; // band 4 - br
+        }
+        if (-1 == whichTrack) // fade out
+        {
+          <<< "It's over!" >>>;
         }
     }
   }
