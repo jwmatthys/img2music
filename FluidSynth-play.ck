@@ -1,7 +1,7 @@
 NRev rev => dac;
 0.01 => rev.mix;
 
-"soundfonts/Salamander_C5-v3-MR-HEDSounds.sf2" => string sfont;
+"soundfonts/1115-Afric Percussion.sf2" => string sfont;
 //"soundfonts/Yamaha-C5-Salamander-JNv5.1.sf2" => string sfont;
 //"soundfonts/Salamander-UltraCompact-JNv3.0.sf2" => string sfont;
 if(me.args() > 0) me.arg(0) => sfont;
@@ -11,20 +11,16 @@ m => dac;
 0.91 => m.gain;
 m.open(sfont);
 
-spork~layer();
-spork~layer();
-spork~layer();
-minute => now;
+layer();
 
 fun void layer ()
 {
+  30 => int note;
   while(true)
   {
-    48 + (Math.random2(0,24) * 3 / 2) => int midinote;
-    //<<< midinote>>>;
-    m.noteOn(midinote,80,0);
-    125::ms => now;
-    if (maybe) 125::ms => now;
-    m.noteOff(midinote,0);
+    <<< "note:",note >>>;
+    m.noteOn(note,80,0);
+    500::ms => now;
+    m.noteOff(note++,0);
   }
 }
