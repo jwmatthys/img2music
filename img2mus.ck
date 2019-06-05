@@ -214,7 +214,7 @@ fun int[] rhythmicPattern (int density, float syncopation)
   }
   while (pitchesLeft)
   {
-    lowRand(0,density + syncopation*(16-density))$int => int pick;
+    clamp(lowRand(0,density + syncopation*(16-density)),0,16)$int => int pick;
     beatWeights[pick] => int beatPosition;
     if (!output[beatPosition])
     {
