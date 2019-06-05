@@ -14,11 +14,6 @@
 [0,3,4,1,2,5] @=> int augmentedWeights[];
 
 [augmentedScale,aeolianScale,dorianScale,minorPentatonicScale,majorPentatonicScale,mixolydianScale,ionianScale,lydianScale,octatonicScale] @=> int allScales[][];
-
-//[octatonicScale, lydianScale, ionianScale, majorPentatonicScale, minorPentatonicScale, dorianScale, aeolianScale,
-//dorianScale, minorPentatonicScale, majorPentatonicScale, ionianScale, lydianScale, octatonicScale] @=> int allScales[][];
-//[octatonicWeights, diatonicWeights, diatonicWeights, pentatonicWeights, pentatonicWeights, diatonicWeights, diatonicWeights,
-//diatonicWeights, pentatonicWeights, pentatonicWeights, diatonicWeights, diatonicWeights, octatonicWeights] @=> int allWeights[][];
 [augmentedWeights,diatonicWeights,diatonicWeights,pentatonicWeights,pentatonicWeights,diatonicWeights,diatonicWeights,diatonicWeights,octatonicWeights] @=> int allWeights[][];
 
 allScales.size() => int numScales;
@@ -32,7 +27,7 @@ NRev rev => Envelope masterFader => dac;
 15::second => masterFader.duration;
 1 => masterFader.value;
 0.1 => rev.mix;
-3 => dac.gain;
+5 => dac.gain;
 
 1=> int count;
 dac => WvOut2 w => blackhole;
@@ -46,13 +41,16 @@ FluidMelody highMelody;
 FluidBass bassLine;
 FluidPercussion percussion;
 FluidChords chords;
+Cloud cloud;
 
 highMelody.set(7,72,19,0,0,0);
-0.5 => highMelody.m.gain;
+1 => highMelody.m.gain;
 
 bassLine.set(48,4,0);
+0.5 => bassLine.m.gain;
 
 percussion.set(24,35,0,0.5);
+0.5 => percussion.m.gain;
 
 0.5 => chords.syncopation;
 
@@ -60,8 +58,8 @@ now => time start;
 second => now;
 while (true)
 {
-  <<< ((now - start)/minute)$int, "minutes elapsed" >>>;
-  minute => now;
+  //<<< ((now - start)/minute)$int, "minutes elapsed" >>>;
+  30::second => now;
 }
 
 //w.closeFile();
@@ -177,6 +175,7 @@ class FluidBass
   {
     while (masterFader.value() > 0.001)
     {
+      if (density < 2) cloud.play();
       lowBarrier => note.lowBarrier;
       rhythmicPattern(density,syncopation) @=> int test[];
       for (int i; i < test.size(); i++)
@@ -405,7 +404,7 @@ class FluidChords
 
 class FluidPercussion
 {
-  9 => int channel;
+  0 => int channel;
   int lowBarrier;
   int range;
   int density;
@@ -414,7 +413,9 @@ class FluidPercussion
   int running;
   float pattern[16];
 
-  "soundfonts/Scratch_2_0.sf2" => string sfont;
+  "soundfonts/1115-Afric Percussion.sf2" => string sfont;
+  //"soundfonts/HS_African_Percussion.sf2" => string sfont;
+
   FluidSynth m => rev;
   m => masterFader;
   m.open(sfont);
@@ -449,7 +450,7 @@ class FluidPercussion
         if (test[i])
         {
           ilerp(pattern[i],lowBarrier,lowBarrier+range) => int note;
-          m.noteOn(note,Math.random2(64,127),channel);
+          m.noteOn(note,Math.random2(36,72),channel);
           if (Math.random2f(0,16) < variation) Math.random2f(0,1) => pattern[i];
         }
         (pulse() - humanize) => now;
@@ -459,6 +460,53 @@ class FluidPercussion
     0 => running;
   }
 }
+
+class Cloud
+{
+    SinOsc v1 => Chorus c1 => ADSR chordEnv;
+    SinOsc v2 => Chorus c2 => chordEnv;
+    SinOsc v3 => Chorus c3 => chordEnv;
+    SinOsc v4 => Chorus c4 => chordEnv;
+    chordEnv => chordEnv => PRCRev chordRev => masterFader;
+
+    0.05 => c1.modDepth => c2.modDepth => c3.modDepth => c4.modDepth;
+    0.05 => chordEnv.gain;
+    8::second => chordEnv.attackTime;
+    8::second => chordEnv.decayTime;
+    0 => chordEnv.sustainLevel;
+		0.5 => chordRev.gain;
+    int running;
+
+    fun void play()
+    {
+      if (!running)
+      {
+    	  Math.random2f(0.5,2) => c1.modFreq;
+    	  Math.random2f(0.5,2) => c2.modFreq;
+    	  Math.random2f(0.5,2) => c3.modFreq;
+    	  Math.random2f(0.5,2) => c4.modFreq;
+        spork ~ playShred();
+        1 => running;
+      }
+    }
+
+    fun void playShred()
+    {
+        root + 84 => Std.mtof => float f;
+
+        f * 2 / 3 => v1.freq;
+        f * 3 / 4 => v2.freq;
+        f * 4 / 3 => v3.freq;
+        f * 3 / 2 => v4.freq;
+        Math.random2(0,10)::second => now;
+        1 => chordEnv.keyOn;
+        Math.random2(6,15)::second => now;
+        1 => chordEnv.keyOff;
+        12::second => now;
+        0 => running;
+    }
+}
+
 
 fun float flerp (float in, float low, float high)
 {
@@ -551,7 +599,7 @@ fun void processOSC()
         if (-1 == whichTrack) // fade out
         {
           0 => masterFader.target;
-          15::second => now;
+          20::second => now;
           w.closeFile();
           <<< "wrote torch"+(count-1)+".wav" >>>;
         }

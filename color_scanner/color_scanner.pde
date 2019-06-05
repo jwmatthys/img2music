@@ -17,7 +17,7 @@ void setup()
   oscP5 = new OscP5(this, 12000); // listen at 12000
   myRemoteLocation = new NetAddress("127.0.0.1", 53186);
   size(150, 150);
-  img = loadImage("16.jpg");
+  img = loadImage("13.jpg");
   frameRate(1);
   colorMode(HSB, 360);
   image(img, 0, 0, width, height);
